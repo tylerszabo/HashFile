@@ -41,20 +41,21 @@ If the hash file being written is also being taken as input will result in a Fil
 function Out-HashFile {
   [CmdletBinding(SupportsShouldProcess = $True, DefaultParameterSetName = "None")]
   Param (
-    [Parameter(Mandatory = $True, Position = 0, ParameterSetName = "PipelineByProperty", ValueFromPipelineByPropertyName = $true)]
+    [Parameter(Mandatory = $False, Position = 0)]
+    [string]
+    $HashFile = $null,
+
+    [Parameter(Mandatory = $True, ParameterSetName = "PipelineByProperty", ValueFromPipelineByPropertyName = $true)]
     [string]
     $Hash,
 
-    [Parameter(Mandatory = $True, Position = 1, ParameterSetName = "PipelineByProperty", ValueFromPipelineByPropertyName = $true)]
+    [Parameter(Mandatory = $True, ParameterSetName = "PipelineByProperty", ValueFromPipelineByPropertyName = $true)]
     [string]
     $Path,
 
-    [Parameter(Mandatory = $True, Position = 2, ParameterSetName = "PipelineByProperty", ValueFromPipelineByPropertyName = $true)]
+    [Parameter(Mandatory = $True, ParameterSetName = "PipelineByProperty", ValueFromPipelineByPropertyName = $true)]
     [string]
     $Algorithm,
-
-    [string]
-    $HashFile = $null,
 
     [switch]
     $Force = $False,
