@@ -196,67 +196,75 @@ function Test-HashFile {
 
   Process {
     ForEach ($CurrentPath in $Path) {
-      If ($CurrentPath) {
-        Write-Verbose "Processing file: $CurrentPath"
-        $Item = Get-Item -Path $CurrentPath
-        $BasePath = $Item.Directory.FullName
-        If (-Not $ForceAlgorithm -And $Item) {
-          switch -wildcard ($Item.Extension) {
-            ".sha512*" { $Algorithm = "SHA512" ; break }
-            ".sha384*" { $Algorithm = "SHA384" ; break }
-            ".sha256*" { $Algorithm = "SHA256" ; break }
-            ".sha1*" { $Algorithm = "SHA1" ; break }
-            ".md5*" { $Algorithm = "MD5" ; break }
+      Try {
+        If ($CurrentPath) {
+          Write-Verbose "Processing file: $CurrentPath"
+          $Item = Get-Item -Path $CurrentPath
+          If ($Item.PSIsContainer) {
+            Write-Verbose "$CurrentPath is a directory, skipping"
+            Continue
           }
-          Write-Verbose "Determined algorithm: $Algorithm"
-        }
-        $InputObject = Get-Content -Path $CurrentPath -Encoding UTF8
-      } Else {
-        $CurrentPath = "<stdin>"
-        $BasePath = Get-Location
-      }
-
-      If (-Not $Algorithm) {
-        Throw "Unable to determine algorithm"
-      }
-
-      $Lines = ($InputObject -split "[\r\n]", 0, "RegexMatch")
-      ForEach ($Line in $Lines) {
-        Write-Verbose "Processing line: $Line"
-        If ($Line -match "^\s*$") {
-          # Skip whitespace
-        } ElseIf ($Line -match "(?m)^(?<Hash>[0-9a-f]+)\s+\*?(?<File>.*)$") {
-          $TestFile = $Matches.File
-          $ExpectedHash = $Matches.Hash
-
-          $Result = [PSCustomObject]@{
-            Algorithm = $Algorithm
-            Path = $TestFile
-            InputPath = $TestFile
-            ActualHash = $null
-            ExpectedHash = $ExpectedHash
-            Ok = $False
-          }
-
-          Try {
-            $Actual = Get-FileHash -Algorithm $Algorithm -LiteralPath (Join-Path -Path $BasePath -ChildPath $TestFile) -ErrorAction Stop
-            $Result.ActualHash = $Actual.Hash
-            $Result.Path = $Actual.Path
-
-            If ($ExpectedHash -Eq $Actual.Hash) {
-              $Result.Ok = $True
-            } Else {
-              Write-Warning "Hashes do not match in $CurrentPath`n $($Actual.Hash) $($Actual.Path)`n $ExpectedHash $TestFile"
+          $BasePath = $Item.Directory.FullName
+          If (-Not $ForceAlgorithm -And $Item) {
+            switch -wildcard ($Item.Extension) {
+              ".sha512*" { $Algorithm = "SHA512" ; break }
+              ".sha384*" { $Algorithm = "SHA384" ; break }
+              ".sha256*" { $Algorithm = "SHA256" ; break }
+              ".sha1*" { $Algorithm = "SHA1" ; break }
+              ".md5*" { $Algorithm = "MD5" ; break }
             }
-          } Catch {
-            Write-Warning "$CurrentPath`: Get-FileHash failed $($_ | Out-String)"
+            Write-Verbose "Determined algorithm: $Algorithm"
           }
-
-          $Result | Add-Member -MemberType MemberSet -Name PSStandardMembers -Value $script:PSStandardMembers
-          $Result | Write-Output
+          $InputObject = Get-Content -Path $CurrentPath -Encoding UTF8
         } Else {
-          Throw "$CurrentPath`: Incorrectly formatted line: $Line"
+          $CurrentPath = "<stdin>"
+          $BasePath = Get-Location
         }
+
+        If (-Not $Algorithm) {
+          Throw "Unable to determine algorithm"
+        }
+
+        $Lines = ($InputObject -split "[\r\n]", 0, "RegexMatch")
+        ForEach ($Line in $Lines) {
+          Write-Verbose "Processing line: $Line"
+          If ($Line -match "^\s*$") {
+            # Skip whitespace
+          } ElseIf ($Line -match "(?m)^(?<Hash>[0-9a-f]+)\s+\*?(?<File>.*)$") {
+            $TestFile = $Matches.File
+            $ExpectedHash = $Matches.Hash
+
+            $Result = [PSCustomObject]@{
+              Algorithm = $Algorithm
+              Path = $TestFile
+              InputPath = $TestFile
+              ActualHash = $null
+              ExpectedHash = $ExpectedHash
+              Ok = $False
+            }
+
+            Try {
+              $Actual = Get-FileHash -Algorithm $Algorithm -LiteralPath (Join-Path -Path $BasePath -ChildPath $TestFile) -ErrorAction Stop
+              $Result.ActualHash = $Actual.Hash
+              $Result.Path = $Actual.Path
+
+              If ($ExpectedHash -Eq $Actual.Hash) {
+                $Result.Ok = $True
+              } Else {
+                Write-Warning "Hashes do not match in $CurrentPath`n $($Actual.Hash) $($Actual.Path)`n $ExpectedHash $TestFile"
+              }
+            } Catch {
+              Write-Warning "$CurrentPath`: Get-FileHash failed $($_ | Out-String)"
+            }
+
+            $Result | Add-Member -MemberType MemberSet -Name PSStandardMembers -Value $script:PSStandardMembers
+            $Result | Write-Output
+          } Else {
+            Throw "$CurrentPath`: Incorrectly formatted line: $Line"
+          }
+        }
+      } Catch {
+        Write-Error $_
       }
     }
   }
